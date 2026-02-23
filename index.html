@@ -7,7 +7,7 @@
     <style>
         :root { 
             --primary: #2563eb; 
-            --spouse: #ec4899; /* Pink for spouse links */
+            --spouse: #ec4899; 
             --bg: #f1f5f9; 
             --card: #ffffff; 
             --text: #1e293b; 
@@ -28,26 +28,28 @@
             position: absolute; width: 160px; background: var(--card);
             padding: 12px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             text-align: center; border: 1px solid #e2e8f0; z-index: 10;
+            cursor: pointer; transition: transform 0.1s, box-shadow 0.2s;
         }
+        .node:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transform: translateY(-2px); }
         .node.me { border: 2px solid var(--primary); }
 
-        .node-img { width: 60px; height: 60px; background: #cbd5e1; border-radius: 50%; margin: 0 auto 8px; background-size: cover; background-position: center; }
-        .node-name { font-weight: bold; font-size: 0.95rem; margin: 0; }
-        .node-phone { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+        .node-img { width: 60px; height: 60px; background: #cbd5e1; border-radius: 50%; margin: 0 auto 8px; background-size: cover; background-position: center; pointer-events: none; }
+        .node-name { font-weight: bold; font-size: 0.95rem; margin: 0; pointer-events: none; }
+        .node-phone { font-size: 0.75rem; color: #64748b; margin-top: 4px; pointer-events: none; }
         
         /* Expansion Buttons */
         .btn-add {
-            position: absolute; width: 24px; height: 24px; background: var(--primary);
+            position: absolute; width: 26px; height: 26px; background: var(--primary);
             color: white; border-radius: 50%; display: flex; align-items: center;
             justify-content: center; font-size: 18px; cursor: pointer; border: 2px solid white;
-            transition: transform 0.2s;
+            z-index: 20; transition: transform 0.2s;
         }
-        .btn-add:hover { transform: scale(1.2) translateX(-50%); }
-        .btn-top { top: -12px; left: 50%; transform: translateX(-50%); }
-        .btn-bottom { bottom: -12px; left: 50%; transform: translateX(-50%); }
-        .btn-left { left: -12px; top: 50%; transform: translateY(-50%); }
-        .btn-right { right: -12px; top: 50%; transform: translateY(-50%); }
-        .btn-spouse { bottom: -12px; right: 10px; background: var(--spouse); font-size: 12px; }
+        .btn-add:hover { transform: scale(1.3); background: #1d4ed8; }
+        .btn-top { top: -13px; left: 50%; transform: translateX(-50%); }
+        .btn-bottom { bottom: -13px; left: 50%; transform: translateX(-50%); }
+        .btn-left { left: -13px; top: 50%; transform: translateY(-50%); }
+        .btn-right { right: -13px; top: 50%; transform: translateY(-50%); }
+        .btn-spouse { bottom: -10px; right: -5px; background: var(--spouse); font-size: 14px; }
 
         dialog { border: none; border-radius: 16px; padding: 24px; width: 90%; max-width: 380px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
         .form-group { margin-bottom: 15px; }
@@ -64,9 +66,7 @@
 
 <header>
     <div><h3 style="margin:0">Family Tree</h3><small id="memberCount">1 Member</small></div>
-    <div style="display:flex; gap:10px;">
-        <button class="btn btn-reset" onclick="resetAll()">Reset Tree</button>
-    </div>
+    <button class="btn btn-reset" onclick="resetAll()">Reset Tree</button>
 </header>
 
 <div id="viewport">
@@ -75,27 +75,27 @@
 </div>
 
 <dialog id="nodeDialog">
-    <h3 id="modalTitle" style="margin-top:0">Add Family Member</h3>
+    <h3 id="modalTitle" style="margin-top:0">Family Member</h3>
     <form id="nodeForm">
-        <div class="form-group">
+        <div class="form-group" id="relationField">
             <label>Relation:</label>
             <input type="text" id="displayRel" disabled style="background:#f8fafc; color: var(--primary); font-weight: bold;">
         </div>
-        <div class="form-group"><label>Full Name</label><input type="text" id="name" required placeholder="Enter name"></div>
-        <div class="form-group"><label>Phone Number</label><input type="tel" id="phone" placeholder="+91..."></div>
-        <div class="form-group"><label>Upload Photo</label><input type="file" id="photo" accept="image/*"></div>
+        <div class="form-group"><label>Full Name</label><input type="text" id="name" required></div>
+        <div class="form-group"><label>Phone Number</label><input type="tel" id="phone"></div>
+        <div class="form-group"><label>Photo</label><input type="file" id="photoInput" accept="image/*"></div>
         
-        <input type="hidden" id="refId"><input type="hidden" id="relType">
+        <input type="hidden" id="nodeId"><input type="hidden" id="refId"><input type="hidden" id="relType">
         
         <div style="display:flex; gap:10px; margin-top:20px;">
             <button type="button" class="btn btn-cancel" onclick="nodeDialog.close()">Cancel</button>
-            <button type="submit" class="btn btn-save">Add to Tree</button>
+            <button type="submit" class="btn btn-save">Save</button>
         </div>
     </form>
 </dialog>
 
 <script>
-    const STORAGE_KEY = 'family_tree_v2';
+    const STORAGE_KEY = 'family_tree_final';
     const DEFAULT = [{ id: 'me', name: 'Me', phone: '', photo: '', parents: [], children: [], siblings: [], spouses: [] }];
     let family = JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT;
 
@@ -118,6 +118,9 @@
             card.style.left = `${p.x}px`;
             card.style.top = `${p.y}px`;
             
+            // Set up main card click (EDIT)
+            card.onclick = () => openEdit(m.id);
+
             card.innerHTML = `
                 <div class="node-img" style="background-image:url(${m.photo || ''})"></div>
                 <p class="node-name">${m.name}</p>
@@ -126,7 +129,7 @@
                 <div class="btn-add btn-bottom" title="Add Child" onclick="event.stopPropagation(); openAdd('${m.id}', 'child')">↓</div>
                 <div class="btn-add btn-left" title="Add Sibling" onclick="event.stopPropagation(); openAdd('${m.id}', 'sibling')">←</div>
                 <div class="btn-add btn-right" title="Add Sibling" onclick="event.stopPropagation(); openAdd('${m.id}', 'sibling')">→</div>
-                <div class="btn-add btn-spouse" title="Add Spouse" onclick="event.stopPropagation(); openAdd('${m.id}', 'spouse')">❤</div>
+                <div class="btn-add btn-spouse" title="Add Spouse" onclick="event.stopPropagation(); openAdd('${m.id}', 'spouse')">❤️</div>
             `;
             container.appendChild(card);
         });
@@ -135,7 +138,7 @@
 
     function calculatePositions() {
         const pos = {}; const visited = new Set();
-        const gX = 240, gY = 200;
+        const gX = 220, gY = 200;
 
         function walk(id, x, y) {
             if (visited.has(id)) return;
@@ -144,10 +147,10 @@
             const m = family.find(f => f.id === id);
             if (!m) return;
 
-            m.parents.forEach((id, i) => walk(id, x + (i * 40), y - gY));
-            m.children.forEach((id, i) => walk(id, x + (i * 40), y + gY));
-            m.siblings.forEach((id, i) => walk(id, x + gX, y));
-            m.spouses.forEach((id, i) => walk(id, x + gX, y));
+            m.parents.forEach((pid, i) => walk(pid, x + (i * 40), y - gY));
+            m.children.forEach((cid, i) => walk(cid, x + (i * 40), y + gY));
+            m.siblings.forEach((sid, i) => walk(sid, x + gX, y));
+            m.spouses.forEach((sid, i) => walk(sid, x + gX, y));
         }
         walk('me', 2420, 2400);
         return pos;
@@ -156,66 +159,89 @@
     function drawLines() {
         canvas.width = 5000; canvas.height = 5000;
         ctx.clearRect(0, 0, 5000, 5000);
-        
         family.forEach(m => {
-            // Parent -> Child (Blue)
             ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2;
-            m.children.forEach(cId => {
-                const c = family.find(f => f.id === cId);
+            m.children.forEach(cid => {
+                const c = family.find(f => f.id === cid);
                 if(c){ ctx.beginPath(); ctx.moveTo(m.x+80, m.y+100); ctx.lineTo(c.x+80, c.y); ctx.stroke(); }
             });
-            // Siblings (Dashed)
             ctx.setLineDash([5, 5]);
-            m.siblings.forEach(sId => {
-                const s = family.find(f => f.id === sId);
+            m.siblings.forEach(sid => {
+                const s = family.find(f => f.id === sid);
                 if(s){ ctx.beginPath(); ctx.moveTo(m.x+160, m.y+50); ctx.lineTo(s.x, s.y+50); ctx.stroke(); }
             });
             ctx.setLineDash([]);
-            // Spouse (Pink)
-            ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 3;
-            m.spouses.forEach(sId => {
-                const s = family.find(f => f.id === sId);
+            ctx.strokeStyle = '#f472b6';
+            m.spouses.forEach(sid => {
+                const s = family.find(f => f.id === sid);
                 if(s){ ctx.beginPath(); ctx.moveTo(m.x+160, m.y+80); ctx.lineTo(s.x, s.y+80); ctx.stroke(); }
             });
         });
     }
 
+    // Modal Handlers
     function openAdd(id, type) {
+        document.getElementById('nodeForm').reset();
+        document.getElementById('modalTitle').innerText = "Add " + type.charAt(0).toUpperCase() + type.slice(1);
+        document.getElementById('relationField').style.display = 'block';
+        document.getElementById('displayRel').value = type.toUpperCase();
         document.getElementById('refId').value = id;
         document.getElementById('relType').value = type;
-        document.getElementById('displayRel').value = type.toUpperCase();
+        document.getElementById('nodeId').value = ""; // Clear for new member
+        dialog.showModal();
+    }
+
+    function openEdit(id) {
+        const m = family.find(f => f.id === id);
+        if(!m) return;
+        document.getElementById('modalTitle').innerText = "Edit Details";
+        document.getElementById('relationField').style.display = 'none';
+        document.getElementById('nodeId').value = m.id;
+        document.getElementById('name').value = m.name;
+        document.getElementById('phone').value = m.phone;
         dialog.showModal();
     }
 
     document.getElementById('nodeForm').onsubmit = async (e) => {
         e.preventDefault();
+        const existingId = document.getElementById('nodeId').value;
         const refId = document.getElementById('refId').value;
         const type = document.getElementById('relType').value;
-        const newId = 'n' + Date.now();
-        
-        const newMember = { id: newId, name: document.getElementById('name').value, phone: document.getElementById('phone').value, photo: '', parents: [], children: [], siblings: [], spouses: [] };
-        const refM = family.find(f => f.id === refId);
+        const photoFile = document.getElementById('photoInput').files[0];
 
-        if (type === 'parent') { refM.parents.push(newId); newMember.children.push(refId); }
-        else if (type === 'child') { refM.children.push(newId); newMember.parents.push(refId); }
-        else if (type === 'sibling') { refM.siblings.push(newId); newMember.siblings.push(refId); }
-        else if (type === 'spouse') { refM.spouses.push(newId); newMember.spouses.push(refId); }
+        let target;
+        if (existingId) {
+            // EDITING EXISTING
+            target = family.find(f => f.id === existingId);
+        } else {
+            // ADDING NEW
+            const newId = 'n' + Date.now();
+            target = { id: newId, name: '', phone: '', photo: '', parents: [], children: [], siblings: [], spouses: [] };
+            family.push(target);
+            
+            const refM = family.find(f => f.id === refId);
+            if (type === 'parent') { refM.parents.push(newId); target.children.push(refId); }
+            else if (type === 'child') { refM.children.push(newId); target.parents.push(refId); }
+            else if (type === 'sibling') { refM.siblings.push(newId); target.siblings.push(refId); }
+            else if (type === 'spouse') { refM.spouses.push(newId); target.spouses.push(refId); }
+        }
 
-        const file = document.getElementById('photo').files[0];
-        if (file) {
-            newMember.photo = await new Promise(r => {
-                const rd = new FileReader(); rd.onload = ev => r(ev.target.result); rd.readAsDataURL(file);
+        target.name = document.getElementById('name').value;
+        target.phone = document.getElementById('phone').value;
+
+        if (photoFile) {
+            target.photo = await new Promise(r => {
+                const rd = new FileReader(); rd.onload = ev => r(ev.target.result); rd.readAsDataURL(photoFile);
             });
         }
 
-        family.push(newMember);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(family));
-        dialog.close(); render();
-        e.target.reset();
+        dialog.close();
+        render();
     };
 
     function resetAll() {
-        if(confirm("Erase all family data?")) { localStorage.clear(); location.reload(); }
+        if(confirm("Erase tree data?")) { localStorage.clear(); location.reload(); }
     }
 
     window.onload = () => {
