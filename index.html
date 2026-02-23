@@ -3,326 +3,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Family Tree App</title>
+    <title>Family Tree - Vanilla JS</title>
     <style>
-        :root {
-            --primary: #2563eb;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --line: #cbd5e1;
+        :root { --primary: #2563eb; --bg: #f1f5f9; --card: #ffffff; --text: #1e293b; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background: var(--bg); }
+        
+        header { 
+            position: fixed; top: 0; width: 100%; padding: 15px; 
+            background: white; border-bottom: 1px solid #ddd; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
         }
 
-        body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            overflow: hidden;
+        #viewport { width: 100vw; height: 100vh; overflow: auto; cursor: grab; position: relative; }
+        #canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+        #nodes-container { position: absolute; width: 5000px; height: 5000px; }
+
+        .node {
+            position: absolute; width: 150px; background: var(--card);
+            padding: 12px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            text-align: center; border: 1px solid #e2e8f0; z-index: 10;
         }
+        .node.me { border: 2px solid var(--primary); box-shadow: 0 0 10px rgba(37, 99, 235, 0.3); }
 
-        /* Header & Actions */
-        header {
-            position: fixed; top: 0; left: 0; right: 0;
-            padding: 1rem; background: rgba(255,255,255,0.8);
-            backdrop-filter: blur(10px); z-index: 100;
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #e2e8f0;
+        .node-img { width: 50px; height: 50px; background: #e2e8f0; border-radius: 50%; margin: 0 auto 8px; object-fit: cover; }
+        .node-name { font-weight: bold; font-size: 0.9rem; margin-bottom: 4px; }
+        
+        /* 4-Direction Buttons */
+        .btn-add {
+            position: absolute; width: 22px; height: 22px; background: var(--primary);
+            color: white; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-size: 16px; cursor: pointer; border: 2px solid white;
         }
+        .btn-top { top: -11px; left: 50%; transform: translateX(-50%); }
+        .btn-bottom { bottom: -11px; left: 50%; transform: translateX(-50%); }
+        .btn-left { left: -11px; top: 50%; transform: translateY(-50%); }
+        .btn-right { right: -11px; top: 50%; transform: translateY(-50%); }
 
-        .btn {
-            padding: 0.5rem 1rem; border-radius: 8px; border: none;
-            cursor: pointer; font-weight: 600; transition: 0.2s;
-        }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-outline { background: white; border: 1px solid #cbd5e1; }
-
-        /* Tree Container */
-        #tree-viewport {
-            width: 100vw; height: 100vh;
-            overflow: auto; cursor: grab;
-            position: relative; touch-action: none;
-        }
-
-        #tree-canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
-
-        #nodes-container { position: absolute; top: 0; left: 0; width: 2000px; height: 2000px; }
-
-        /* Node Cards */
-        .node-card {
-            position: absolute; width: 140px; background: var(--card-bg);
-            border-radius: 12px; padding: 10px; text-align: center;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0; transition: transform 0.2s;
-            z-index: 10;
-        }
-
-        .node-thumb {
-            width: 50px; height: 50px; background: #e2e8f0;
-            border-radius: 50%; margin: 0 auto 8px;
-            object-fit: cover; border: 2px solid white;
-        }
-
-        .node-name { font-weight: bold; font-size: 0.9rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .node-role { font-size: 0.75rem; color: #64748b; }
-
-        .add-btn {
-            position: absolute; bottom: -12px; left: 50%;
-            transform: translateX(-50%); width: 24px; height: 24px;
-            background: var(--primary); color: white; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; cursor: pointer; border: 2px solid white;
-        }
-
-        /* Modal Styles */
-        dialog {
-            border: none; border-radius: 16px; padding: 1.5rem;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-            width: 90%; max-width: 400px;
-        }
-
-        dialog::backdrop { background: rgba(0,0,0,0.5); }
-
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; font-size: 0.875rem; margin-bottom: 0.3rem; }
-        input { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
-
-        .broadcast-bar {
-            position: fixed; bottom: 20px; right: 20px; z-index: 100;
-        }
+        dialog { border: none; border-radius: 12px; padding: 20px; width: 90%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.8rem; color: #64748b; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-red { background: #ef4444; color: white; }
+        .btn-blue { background: var(--primary); color: white; }
     </style>
 </head>
 <body>
 
 <header>
-    <h2 style="margin:0; font-size: 1.2rem;">Family Tree</h2>
-    <div>
-        <button class="btn btn-outline" onclick="resetData()">Reset</button>
-    </div>
+    <h3 style="margin:0">Family Tree</h3>
+    <button class="btn btn-red" onclick="resetAll()">Reset All Data</button>
 </header>
 
-<div id="tree-viewport">
-    <canvas id="tree-canvas"></canvas>
+<div id="viewport">
+    <canvas id="canvas"></canvas>
     <div id="nodes-container"></div>
 </div>
 
-<div class="broadcast-bar">
-    <button class="btn btn-primary" onclick="broadcastWhatsApp()">📢 Broadcast All</button>
-</div>
-
-<dialog id="nodeModal">
-    <h3 id="modalTitle">Edit Member</h3>
+<dialog id="nodeDialog">
+    <h3 id="modalTitle">Add Member</h3>
     <form id="nodeForm">
         <div class="form-group">
-            <label>Photo</label>
-            <input type="file" id="nodePhoto" accept="image/*">
+            <label>Relation to selected:</label>
+            <input type="text" id="displayRelation" disabled style="background:#f1f5f9">
         </div>
-        <div class="form-group">
-            <label>Name</label>
-            <input type="text" id="nodeName" required>
-        </div>
-        <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="nodeEmail">
-        </div>
-        <div class="form-group">
-            <label>Phone</label>
-            <input type="tel" id="nodePhone">
-        </div>
-        <input type="hidden" id="nodeId">
-        <input type="hidden" id="parentId">
-        <div style="display:flex; gap:10px; margin-top:1.5rem;">
-            <button type="button" class="btn btn-outline" onclick="nodeModal.close()" style="flex:1">Cancel</button>
-            <button type="submit" class="btn btn-primary" style="flex:1">Save</button>
+        <div class="form-group"><label>Name</label><input type="text" id="name" required></div>
+        <div class="form-group"><label>Phone</label><input type="tel" id="phone"></div>
+        <div class="form-group"><label>Photo</label><input type="file" id="photo" accept="image/*"></div>
+        
+        <input type="hidden" id="refId">
+        <input type="hidden" id="relationType">
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button type="button" class="btn" onclick="nodeDialog.close()">Cancel</button>
+            <button type="submit" class="btn btn-blue">Save Member</button>
         </div>
     </form>
 </dialog>
 
 <script>
-    let familyData = JSON.parse(localStorage.getItem('familyTree')) || [
-        { id: '1', name: 'Root Member', email: '', phone: '', photo: '', parentId: null }
-    ];
+    const DEFAULT_DATA = [{ id: 'me', name: 'Me', phone: '', photo: '', parents: [], children: [], siblings: [] }];
+    let family = JSON.parse(localStorage.getItem('myFamilyData')) || DEFAULT_DATA;
 
     const container = document.getElementById('nodes-container');
-    const canvas = document.getElementById('tree-canvas');
+    const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const nodeModal = document.getElementById('nodeModal');
-    const nodeForm = document.getElementById('nodeForm');
+    const dialog = document.getElementById('nodeDialog');
 
-    // CONFIG
-    const CARD_WIDTH = 140;
-    const CARD_HEIGHT = 100;
-    const VERT_GAP = 150;
-    const HORIZ_GAP = 180;
-
-    function init() {
-        renderTree();
-        setupDraggable();
-    }
-
-    function renderTree() {
+    function render() {
         container.innerHTML = '';
-        const levels = {};
+        const positions = calculatePositions();
         
-        // Simple recursive positioning logic
-        function positionNode(nodeId, level, xOffset) {
-            const node = familyData.find(n => n.id === nodeId);
-            if (!node) return;
+        family.forEach(member => {
+            const pos = positions[member.id] || { x: 2500, y: 2500 };
+            member.x = pos.x; member.y = pos.y;
 
-            if (!levels[level]) levels[level] = 0;
+            const div = document.createElement('div');
+            div.className = `node ${member.id === 'me' ? 'me' : ''}`;
+            div.style.left = `${pos.x}px`;
+            div.style.top = `${pos.y}px`;
             
-            const x = 500 + (levels[level] * HORIZ_GAP);
-            const y = 100 + (level * VERT_GAP);
-            
-            node.x = x;
-            node.y = y;
-            levels[level]++;
-
-            const children = familyData.filter(n => n.parentId === nodeId);
-            children.forEach(child => positionNode(child.id, level + 1));
-        }
-
-        const root = familyData.find(n => !n.parentId);
-        positionNode(root.id, 0, 0);
-
-        // Draw Nodes
-        familyData.forEach(node => {
-            const card = document.createElement('div');
-            card.className = 'node-card';
-            card.style.left = `${node.x}px`;
-            card.style.top = `${node.y}px`;
-            
-            const img = node.photo ? `<img src="${node.photo}" class="node-thumb">` : `<div class="node-thumb"></div>`;
-            
-            card.innerHTML = `
-                ${img}
-                <p class="node-name">${node.name}</p>
-                <p class="node-role">${node.parentId ? 'Family' : 'Head'}</p>
-                <div class="add-btn" onclick="event.stopPropagation(); openAddModal('${node.id}')">+</div>
+            div.innerHTML = `
+                <div class="node-img" style="background-image:url(${member.photo || ''}); background-size:cover"></div>
+                <div class="node-name">${member.name}</div>
+                <div class="btn-add btn-top" onclick="event.stopPropagation(); openAdd('${member.id}', 'parent')">↑</div>
+                <div class="btn-add btn-bottom" onclick="event.stopPropagation(); openAdd('${member.id}', 'child')">↓</div>
+                <div class="btn-add btn-left" onclick="event.stopPropagation(); openAdd('${member.id}', 'sibling')">←</div>
+                <div class="btn-add btn-right" onclick="event.stopPropagation(); openAdd('${member.id}', 'sibling')">→</div>
             `;
-            
-            card.onclick = () => openEditModal(node);
-            container.appendChild(card);
+            container.appendChild(div);
         });
-
         drawLines();
     }
 
-    function drawLines() {
-        canvas.width = 2000;
-        canvas.height = 2000;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#cbd5e1';
-        ctx.lineWidth = 2;
+    function calculatePositions() {
+        const pos = {};
+        const visited = new Set();
+        const gapX = 220, gapY = 180;
 
-        familyData.forEach(node => {
-            if (node.parentId) {
-                const parent = familyData.find(p => p.id === node.parentId);
-                if (parent) {
+        function walk(id, x, y) {
+            if (visited.has(id)) return;
+            visited.add(id);
+            pos[id] = { x, y };
+
+            const m = family.find(f => f.id === id);
+            if (!m) return;
+
+            m.parents.forEach((pId, i) => walk(pId, x + (i * 50), y - gapY));
+            m.children.forEach((cId, i) => walk(cId, x + (i * 50), y + gapY));
+            m.siblings.forEach((sId, i) => walk(sId, x + gapX, y));
+        }
+
+        walk('me', 2400, 2400); // Start from center of large container
+        return pos;
+    }
+
+    function drawLines() {
+        canvas.width = 5000; canvas.height = 5000;
+        ctx.clearRect(0, 0, 5000, 5000);
+        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2;
+
+        family.forEach(m => {
+            m.children.forEach(cId => {
+                const child = family.find(f => f.id === cId);
+                if (child) {
                     ctx.beginPath();
-                    ctx.moveTo(parent.x + CARD_WIDTH / 2, parent.y + CARD_HEIGHT);
-                    ctx.lineTo(node.x + CARD_WIDTH / 2, node.y);
+                    ctx.moveTo(m.x + 75, m.y + 70);
+                    ctx.lineTo(child.x + 75, child.y);
                     ctx.stroke();
                 }
-            }
+            });
+            m.siblings.forEach(sId => {
+                const sib = family.find(f => f.id === sId);
+                if (sib) {
+                    ctx.beginPath();
+                    ctx.moveTo(m.x + 150, m.y + 35);
+                    ctx.lineTo(sib.x, sib.y + 35);
+                    ctx.stroke();
+                }
+            });
         });
     }
 
-    function openAddModal(parentId) {
-        nodeForm.reset();
-        document.getElementById('modalTitle').innerText = "Add Child";
-        document.getElementById('nodeId').value = "";
-        document.getElementById('parentId').value = parentId;
-        nodeModal.showModal();
+    function openAdd(id, type) {
+        document.getElementById('refId').value = id;
+        document.getElementById('relationType').value = type;
+        document.getElementById('displayRelation').value = type.toUpperCase();
+        document.getElementById('name').value = '';
+        dialog.showModal();
     }
 
-    function openEditModal(node) {
-        document.getElementById('modalTitle').innerText = "Edit Member";
-        document.getElementById('nodeId').value = node.id;
-        document.getElementById('parentId').value = node.parentId || "";
-        document.getElementById('nodeName').value = node.name;
-        document.getElementById('nodeEmail').value = node.email;
-        document.getElementById('nodePhone').value = node.phone;
-        nodeModal.showModal();
-    }
-
-    nodeForm.onsubmit = (e) => {
+    document.getElementById('nodeForm').onsubmit = async (e) => {
         e.preventDefault();
-        const id = document.getElementById('nodeId').value || Date.now().toString();
-        const parentId = document.getElementById('parentId').value;
-        const fileInput = document.getElementById('nodePhoto');
+        const refId = document.getElementById('refId').value;
+        const type = document.getElementById('relationType').value;
+        const newId = 'n' + Date.now();
         
-        const save = (photoBase64 = null) => {
-            const existingIdx = familyData.findIndex(n => n.id === id);
-            const nodeData = {
-                id,
-                name: document.getElementById('nodeName').value,
-                email: document.getElementById('nodeEmail').value,
-                phone: document.getElementById('nodePhone').value,
-                parentId: parentId || null,
-                photo: photoBase64 || (existingIdx > -1 ? familyData[existingIdx].photo : '')
-            };
-
-            if (existingIdx > -1) familyData[existingIdx] = nodeData;
-            else familyData.push(nodeData);
-
-            localStorage.setItem('familyTree', JSON.stringify(familyData));
-            nodeModal.close();
-            renderTree();
+        const newMember = {
+            id: newId,
+            name: document.getElementById('name').value,
+            phone: document.getElementById('phone').value,
+            photo: '', parents: [], children: [], siblings: []
         };
 
-        if (fileInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => save(e.target.result);
-            reader.readAsDataURL(fileInput.files[0]);
-        } else {
-            save();
+        const refMember = family.find(f => f.id === refId);
+        if (type === 'parent') { refMember.parents.push(newId); newMember.children.push(refId); }
+        if (type === 'child') { refMember.children.push(newId); newMember.parents.push(refId); }
+        if (type === 'sibling') { refMember.siblings.push(newId); newMember.siblings.push(refId); }
+
+        const photoFile = document.getElementById('photo').files[0];
+        if (photoFile) {
+            newMember.photo = await new Promise(r => {
+                const reader = new FileReader();
+                reader.onload = e => r(e.target.result);
+                reader.readAsDataURL(photoFile);
+            });
         }
+
+        family.push(newMember);
+        localStorage.setItem('myFamilyData', JSON.stringify(family));
+        dialog.close();
+        render();
     };
 
-    function broadcastWhatsApp() {
-        const phones = familyData.map(n => n.phone).filter(p => p.length > 5);
-        if (phones.length === 0) return alert("No phone numbers found!");
-        const msg = encodeURIComponent("Hello Family! Check out our updated tree.");
-        window.open(`https://wa.me/?text=${msg}`, '_blank');
-    }
-
-    function resetData() {
-        if(confirm("Delete all data?")) {
-            localStorage.clear();
-            location.reload();
+    function resetAll() {
+        if (confirm("This will delete the entire tree. Proceed?")) {
+            localStorage.removeItem('myFamilyData');
+            family = [...DEFAULT_DATA];
+            render();
         }
     }
 
-    // Panning/Dragging Logic
-    function setupDraggable() {
-        const el = document.getElementById('tree-viewport');
-        let isDown = false;
-        let startX, startY, scrollLeft, scrollTop;
-
-        el.addEventListener('mousedown', (e) => {
-            isDown = true; el.style.cursor = 'grabbing';
-            startX = e.pageX - el.offsetLeft;
-            startY = e.pageY - el.offsetTop;
-            scrollLeft = el.scrollLeft;
-            scrollTop = el.scrollTop;
-        });
-        el.addEventListener('mouseleave', () => { isDown = false; });
-        el.addEventListener('mouseup', () => { isDown = false; el.style.cursor = 'grab'; });
-        el.addEventListener('mousemove', (e) => {
-            if (!isDown) return;
-            e.preventDefault();
-            const x = e.pageX - el.offsetLeft;
-            const y = e.pageY - el.offsetTop;
-            const walkX = (x - startX) * 1.5;
-            const walkY = (y - startY) * 1.5;
-            el.scrollLeft = scrollLeft - walkX;
-            el.scrollTop = scrollTop - walkY;
-        });
-    }
-
-    init();
+    // Scroll to center on load
+    window.onload = () => {
+        render();
+        const vp = document.getElementById('viewport');
+        vp.scrollLeft = 2500 - (window.innerWidth / 2);
+        vp.scrollTop = 2500 - (window.innerHeight / 2);
+    };
 </script>
 </body>
 </html>
