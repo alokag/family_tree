@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Family Tree</title>
+
+  <style>
+    /* -------- RESET -------- */
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #f4f6fb;
+    }
+
+    /* -------- HEADER -------- */
+    header {
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+      padding: 12px 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 18px;
+      margin: 0;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: #4f46e5;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111;
+    }
+
+    /* -------- TREE CONTAINER -------- */
+    #tree-wrapper {
+      position: relative;
+      height: calc(100vh - 56px);
+      overflow: auto;
+      touch-action: pan-x pan-y;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+
+    #tree {
+      position: relative;
+      min-width: 1200px;
+      min-height: 1200px;
+      z-index: 1;
+    }
+
+    /* -------- NODE CARD -------- */
+    .node {
+      position: absolute;
+      width: 140px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.1);
+      padding: 10px;
+      text-align: center;
+    }
+
+    .photo {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      margin: 0 auto 6px;
+      overflow: hidden;
+    }
+
+    .photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .role {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+
+    .actions button {
+      flex: 1;
+      margin: 2px;
+      padding: 4px;
+      font-size: 12px;
+    }
+
+    /* -------- MODAL -------- */
+    dialog {
+      border: none;
+      border-radius: 12px;
+      padding: 16px;
+      width: 90%;
+      max-width: 360px;
+    }
+
+    dialog form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    dialog input {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+    }
+
+    dialog::backdrop {
+      background: rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>🌳 Family Tree</h1>
+  <button onclick="broadcast()">Broadcast</button>
+</header>
+
+<div id="tree-wrapper">
+  <canvas id="lines"></canvas>
+  <div id="tree"></div>
+</div>
+
+<!-- -------- MODAL -------- -->
+<dialog id="personDialog">
+  <form method="dialog">
+    <input type="hidden" id="personId">
+    <input id="name" placeholder="Name" required />
+    <input id="email" placeholder="Email" />
+    <input id="phone" placeholder="Phone" />
+    <input id="photo" type="file" accept="image/*" />
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button value="cancel" class="secondary">Cancel</button>
+      <button onclick="savePerson()">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/* -------- DATA -------- */
+let treeData = JSON.parse(localStorage.getItem("familyTree")) || [
+  { id: 1, name: "Me", email: "", phone: "", photo: "", parentID: null, spouseID: null }
+];
+
+const treeEl = document.getElementById("tree");
+const canvas = document.getElementById("lines");
+const ctx = canvas.getContext("2d");
+const dialog = document.getElementById("personDialog");
+
+let nodePositions = {};
+
+/* -------- LAYOUT ENGINE -------- */
+function layoutTree() {
+  nodePositions = {};
+  const levels = {};
+
+  treeData.forEach(p => {
+    const level = getLevel(p);
+    if (!levels[level]) levels[level] = [];
+    levels[level].push(p);
+  });
+
+  const levelHeight = 180;
+  Object.keys(levels).forEach(level => {
+    levels[level].forEach((p, i) => {
+      nodePositions[p.id] = {
+        x: i * 180 + 100,
+        y: level * levelHeight + 60
+      };
+    });
+  });
+}
+
+function getLevel(person) {
+  if (!person.parentID) return 0;
+  const parent = treeData.find(p => p.id === person.parentID);
+  return parent ? getLevel(parent) + 1 : 0;
+}
+
+/* -------- RENDER -------- */
+function render() {
+  treeEl.innerHTML = "";
+  layoutTree();
+  resizeCanvas();
+  drawLines();
+
+  treeData.forEach(p => {
+    const pos = nodePositions[p.id];
+    const node = document.createElement("div");
+    node.className = "node";
+    node.style.left = pos.x + "px";
+    node.style.top = pos.y + "px";
+
+    node.innerHTML = `
+      <div class="photo">${p.photo ? `<img src="${p.photo}">` : ""}</div>
+      <div class="name">${p.name}</div>
+      <div class="role">${p.parentID ? "Child" : "Root"}</div>
+      <div class="actions">
+        <button onclick="openEdit(${p.id})">Edit</button>
+        <button onclick="addChild(${p.id})">+</button>
+      </div>
+    `;
+    treeEl.appendChild(node);
+  });
+
+  save();
+}
+
+/* -------- CANVAS -------- */
+function resizeCanvas() {
+  canvas.width = treeEl.scrollWidth;
+  canvas.height = treeEl.scrollHeight;
+}
+
+function drawLines() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle = "#9ca3af";
+  ctx.lineWidth = 2;
+
+  treeData.forEach(p => {
+    if (p.parentID) {
+      const from = nodePositions[p.parentID];
+      const to = nodePositions[p.id];
+      ctx.beginPath();
+      ctx.moveTo(from.x + 70, from.y + 140);
+      ctx.lineTo(to.x + 70, to.y);
+      ctx.stroke();
+    }
+  });
+}
+
+/* -------- CRUD -------- */
+function openEdit(id) {
+  const p = treeData.find(x => x.id === id);
+  personId.value = id;
+  name.value = p.name;
+  email.value = p.email;
+  phone.value = p.phone;
+  dialog.showModal();
+}
+
+function addChild(parentId) {
+  const id = Date.now();
+  treeData.push({
+    id,
+    name: "New Member",
+    email: "",
+    phone: "",
+    photo: "",
+    parentID: parentId,
+    spouseID: null
+  });
+  render();
+}
+
+function savePerson() {
+  const id = +personId.value;
+  const p = treeData.find(x => x.id === id);
+  p.name = name.value;
+  p.email = email.value;
+  p.phone = phone.value;
+
+  const file = photo.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      p.photo = reader.result;
+      render();
+    };
+    reader.readAsDataURL(file);
+  } else {
+    render();
+  }
+}
+
+/* -------- BROADCAST -------- */
+function broadcast() {
+  const phones = treeData.map(p => p.phone).filter(Boolean);
+  const text = encodeURIComponent("Family update!");
+  window.location.href = `https://wa.me/?text=${text}\n${phones.join(",")}`;
+}
+
+/* -------- STORAGE -------- */
+function save() {
+  localStorage.setItem("familyTree", JSON.stringify(treeData));
+}
+
+/* -------- INIT -------- */
+render();
+</script>
+
+</body>
+</html>

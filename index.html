@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Family Tree App</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --line: #cbd5e1;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        /* Header & Actions */
+        header {
+            position: fixed; top: 0; left: 0; right: 0;
+            padding: 1rem; background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(10px); z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem; border-radius: 8px; border: none;
+            cursor: pointer; font-weight: 600; transition: 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: white; border: 1px solid #cbd5e1; }
+
+        /* Tree Container */
+        #tree-viewport {
+            width: 100vw; height: 100vh;
+            overflow: auto; cursor: grab;
+            position: relative; touch-action: none;
+        }
+
+        #tree-canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+        #nodes-container { position: absolute; top: 0; left: 0; width: 2000px; height: 2000px; }
+
+        /* Node Cards */
+        .node-card {
+            position: absolute; width: 140px; background: var(--card-bg);
+            border-radius: 12px; padding: 10px; text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0; transition: transform 0.2s;
+            z-index: 10;
+        }
+
+        .node-thumb {
+            width: 50px; height: 50px; background: #e2e8f0;
+            border-radius: 50%; margin: 0 auto 8px;
+            object-fit: cover; border: 2px solid white;
+        }
+
+        .node-name { font-weight: bold; font-size: 0.9rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .node-role { font-size: 0.75rem; color: #64748b; }
+
+        .add-btn {
+            position: absolute; bottom: -12px; left: 50%;
+            transform: translateX(-50%); width: 24px; height: 24px;
+            background: var(--primary); color: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; cursor: pointer; border: 2px solid white;
+        }
+
+        /* Modal Styles */
+        dialog {
+            border: none; border-radius: 16px; padding: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            width: 90%; max-width: 400px;
+        }
+
+        dialog::backdrop { background: rgba(0,0,0,0.5); }
+
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.875rem; margin-bottom: 0.3rem; }
+        input { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+
+        .broadcast-bar {
+            position: fixed; bottom: 20px; right: 20px; z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2 style="margin:0; font-size: 1.2rem;">Family Tree</h2>
+    <div>
+        <button class="btn btn-outline" onclick="resetData()">Reset</button>
+    </div>
+</header>
+
+<div id="tree-viewport">
+    <canvas id="tree-canvas"></canvas>
+    <div id="nodes-container"></div>
+</div>
+
+<div class="broadcast-bar">
+    <button class="btn btn-primary" onclick="broadcastWhatsApp()">📢 Broadcast All</button>
+</div>
+
+<dialog id="nodeModal">
+    <h3 id="modalTitle">Edit Member</h3>
+    <form id="nodeForm">
+        <div class="form-group">
+            <label>Photo</label>
+            <input type="file" id="nodePhoto" accept="image/*">
+        </div>
+        <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="nodeName" required>
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="nodeEmail">
+        </div>
+        <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="nodePhone">
+        </div>
+        <input type="hidden" id="nodeId">
+        <input type="hidden" id="parentId">
+        <div style="display:flex; gap:10px; margin-top:1.5rem;">
+            <button type="button" class="btn btn-outline" onclick="nodeModal.close()" style="flex:1">Cancel</button>
+            <button type="submit" class="btn btn-primary" style="flex:1">Save</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+    let familyData = JSON.parse(localStorage.getItem('familyTree')) || [
+        { id: '1', name: 'Root Member', email: '', phone: '', photo: '', parentId: null }
+    ];
+
+    const container = document.getElementById('nodes-container');
+    const canvas = document.getElementById('tree-canvas');
+    const ctx = canvas.getContext('2d');
+    const nodeModal = document.getElementById('nodeModal');
+    const nodeForm = document.getElementById('nodeForm');
+
+    // CONFIG
+    const CARD_WIDTH = 140;
+    const CARD_HEIGHT = 100;
+    const VERT_GAP = 150;
+    const HORIZ_GAP = 180;
+
+    function init() {
+        renderTree();
+        setupDraggable();
+    }
+
+    function renderTree() {
+        container.innerHTML = '';
+        const levels = {};
+        
+        // Simple recursive positioning logic
+        function positionNode(nodeId, level, xOffset) {
+            const node = familyData.find(n => n.id === nodeId);
+            if (!node) return;
+
+            if (!levels[level]) levels[level] = 0;
+            
+            const x = 500 + (levels[level] * HORIZ_GAP);
+            const y = 100 + (level * VERT_GAP);
+            
+            node.x = x;
+            node.y = y;
+            levels[level]++;
+
+            const children = familyData.filter(n => n.parentId === nodeId);
+            children.forEach(child => positionNode(child.id, level + 1));
+        }
+
+        const root = familyData.find(n => !n.parentId);
+        positionNode(root.id, 0, 0);
+
+        // Draw Nodes
+        familyData.forEach(node => {
+            const card = document.createElement('div');
+            card.className = 'node-card';
+            card.style.left = `${node.x}px`;
+            card.style.top = `${node.y}px`;
+            
+            const img = node.photo ? `<img src="${node.photo}" class="node-thumb">` : `<div class="node-thumb"></div>`;
+            
+            card.innerHTML = `
+                ${img}
+                <p class="node-name">${node.name}</p>
+                <p class="node-role">${node.parentId ? 'Family' : 'Head'}</p>
+                <div class="add-btn" onclick="event.stopPropagation(); openAddModal('${node.id}')">+</div>
+            `;
+            
+            card.onclick = () => openEditModal(node);
+            container.appendChild(card);
+        });
+
+        drawLines();
+    }
+
+    function drawLines() {
+        canvas.width = 2000;
+        canvas.height = 2000;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+
+        familyData.forEach(node => {
+            if (node.parentId) {
+                const parent = familyData.find(p => p.id === node.parentId);
+                if (parent) {
+                    ctx.beginPath();
+                    ctx.moveTo(parent.x + CARD_WIDTH / 2, parent.y + CARD_HEIGHT);
+                    ctx.lineTo(node.x + CARD_WIDTH / 2, node.y);
+                    ctx.stroke();
+                }
+            }
+        });
+    }
+
+    function openAddModal(parentId) {
+        nodeForm.reset();
+        document.getElementById('modalTitle').innerText = "Add Child";
+        document.getElementById('nodeId').value = "";
+        document.getElementById('parentId').value = parentId;
+        nodeModal.showModal();
+    }
+
+    function openEditModal(node) {
+        document.getElementById('modalTitle').innerText = "Edit Member";
+        document.getElementById('nodeId').value = node.id;
+        document.getElementById('parentId').value = node.parentId || "";
+        document.getElementById('nodeName').value = node.name;
+        document.getElementById('nodeEmail').value = node.email;
+        document.getElementById('nodePhone').value = node.phone;
+        nodeModal.showModal();
+    }
+
+    nodeForm.onsubmit = (e) => {
+        e.preventDefault();
+        const id = document.getElementById('nodeId').value || Date.now().toString();
+        const parentId = document.getElementById('parentId').value;
+        const fileInput = document.getElementById('nodePhoto');
+        
+        const save = (photoBase64 = null) => {
+            const existingIdx = familyData.findIndex(n => n.id === id);
+            const nodeData = {
+                id,
+                name: document.getElementById('nodeName').value,
+                email: document.getElementById('nodeEmail').value,
+                phone: document.getElementById('nodePhone').value,
+                parentId: parentId || null,
+                photo: photoBase64 || (existingIdx > -1 ? familyData[existingIdx].photo : '')
+            };
+
+            if (existingIdx > -1) familyData[existingIdx] = nodeData;
+            else familyData.push(nodeData);
+
+            localStorage.setItem('familyTree', JSON.stringify(familyData));
+            nodeModal.close();
+            renderTree();
+        };
+
+        if (fileInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => save(e.target.result);
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            save();
+        }
+    };
+
+    function broadcastWhatsApp() {
+        const phones = familyData.map(n => n.phone).filter(p => p.length > 5);
+        if (phones.length === 0) return alert("No phone numbers found!");
+        const msg = encodeURIComponent("Hello Family! Check out our updated tree.");
+        window.open(`https://wa.me/?text=${msg}`, '_blank');
+    }
+
+    function resetData() {
+        if(confirm("Delete all data?")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    // Panning/Dragging Logic
+    function setupDraggable() {
+        const el = document.getElementById('tree-viewport');
+        let isDown = false;
+        let startX, startY, scrollLeft, scrollTop;
+
+        el.addEventListener('mousedown', (e) => {
+            isDown = true; el.style.cursor = 'grabbing';
+            startX = e.pageX - el.offsetLeft;
+            startY = e.pageY - el.offsetTop;
+            scrollLeft = el.scrollLeft;
+            scrollTop = el.scrollTop;
+        });
+        el.addEventListener('mouseleave', () => { isDown = false; });
+        el.addEventListener('mouseup', () => { isDown = false; el.style.cursor = 'grab'; });
+        el.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - el.offsetLeft;
+            const y = e.pageY - el.offsetTop;
+            const walkX = (x - startX) * 1.5;
+            const walkY = (y - startY) * 1.5;
+            el.scrollLeft = scrollLeft - walkX;
+            el.scrollTop = scrollTop - walkY;
+        });
+    }
+
+    init();
+</script>
+</body>
+</html>
