@@ -1,142 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Family Tree</title>
 
 <style>
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #f3f4f6;
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,sans-serif;
+  background:#f3f4f6;
+}
+header{
+  position:sticky;top:0;
+  background:#fff;
+  padding:12px 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+  z-index:10;
+}
+button{
+  border:none;
+  padding:8px 12px;
+  border-radius:8px;
+  background:#4f46e5;
+  color:#fff;
+  cursor:pointer;
+}
+button.secondary{
+  background:#e5e7eb;color:#111;
+}
+#tree-wrapper{
+  position:relative;
+  height:calc(100vh - 56px);
+  overflow:auto;
+}
+canvas{
+  position:absolute;inset:0;
+  z-index:0;
+}
+#tree{
+  position:relative;
+  min-width:2000px;
+  min-height:1200px;
+  z-index:1;
+}
+.node{
+  position:absolute;
+  width:150px;
+  background:#fff;
+  border-radius:12px;
+  box-shadow:0 6px 14px rgba(0,0,0,.12);
+  padding:10px;
+  text-align:center;
+}
+.photo{
+  width:56px;height:56px;
+  border-radius:50%;
+  background:#e5e7eb;
+  margin:auto;
+  overflow:hidden;
+}
+.photo img{width:100%;height:100%;object-fit:cover}
+.name{font-weight:600;margin-top:6px}
+
+.controls{position:absolute;inset:0;pointer-events:none}
+.ctrl{
+  position:absolute;
+  width:22px;height:22px;
+  border-radius:50%;
+  background:#4f46e5;
+  color:#fff;
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  pointer-events:auto;
+}
+.ctrl.top{top:-12px;left:50%;transform:translateX(-50%)}
+.ctrl.bottom{bottom:-12px;left:50%;transform:translateX(-50%)}
+.ctrl.left{left:-12px;top:50%;transform:translateY(-50%)}
+.ctrl.right{right:-12px;top:50%;transform:translateY(-50%)}
+.ctrl.spouse{
+  right:-36px;top:50%;
+  transform:translateY(-50%);
+  background:#ec4899;
 }
 
-header {
-  position: sticky;
-  top: 0;
-  background: #fff;
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,.1);
-  z-index: 10;
+dialog{
+  border:none;
+  border-radius:12px;
+  padding:16px;
+  width:90%;
+  max-width:360px;
 }
-
-button {
-  border: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: #4f46e5;
-  color: #fff;
-  cursor: pointer;
+dialog form{display:flex;flex-direction:column;gap:8px}
+dialog input{
+  padding:8px;
+  border-radius:6px;
+  border:1px solid #d1d5db;
 }
-
-button.secondary {
-  background: #e5e7eb;
-  color: #111;
-}
-
-#tree-wrapper {
-  position: relative;
-  height: calc(100vh - 56px);
-  overflow: auto;
-}
-
-canvas {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-#tree {
-  position: relative;
-  min-width: 1600px;
-  min-height: 1200px;
-  z-index: 1;
-}
-
-.node {
-  position: absolute;
-  width: 150px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 6px 14px rgba(0,0,0,.12);
-  padding: 10px;
-  text-align: center;
-}
-
-.photo {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: #e5e7eb;
-  margin: auto;
-  overflow: hidden;
-}
-
-.photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.name {
-  font-weight: 600;
-  margin-top: 6px;
-}
-
-.controls {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.ctrl {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #4f46e5;
-  color: #fff;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  pointer-events: all;
-}
-
-.ctrl.top { top: -12px; left: 50%; transform: translateX(-50%); }
-.ctrl.bottom { bottom: -12px; left: 50%; transform: translateX(-50%); }
-.ctrl.left { left: -12px; top: 50%; transform: translateY(-50%); }
-.ctrl.right { right: -12px; top: 50%; transform: translateY(-50%); }
-
-dialog {
-  border: none;
-  border-radius: 12px;
-  padding: 16px;
-  width: 90%;
-  max-width: 360px;
-}
-
-dialog form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-dialog input {
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-}
-
-dialog::backdrop {
-  background: rgba(0,0,0,.4);
-}
+dialog::backdrop{background:rgba(0,0,0,.4)}
 </style>
 </head>
 
@@ -164,7 +132,7 @@ dialog::backdrop {
     <input id="email" placeholder="Email">
     <input id="phone" placeholder="Phone">
     <input id="photo" type="file" accept="image/*">
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;margin-top:8px">
       <button value="cancel" class="secondary">Cancel</button>
       <button onclick="save()">Save</button>
     </div>
@@ -172,50 +140,47 @@ dialog::backdrop {
 </dialog>
 
 <script>
-const treeEl = document.getElementById("tree");
-const canvas = document.getElementById("lines");
-const ctx = canvas.getContext("2d");
-const dialog = document.getElementById("personDialog");
+const treeEl=document.getElementById("tree");
+const canvas=document.getElementById("lines");
+const ctx=canvas.getContext("2d");
+const dialog=document.getElementById("personDialog");
 
-let data = JSON.parse(localStorage.getItem("familyTree")) || [
-  { id: 1, name: "Me", email:"", phone:"", photo:"", parentID:null }
+let data=JSON.parse(localStorage.getItem("familyTree"))||[
+  {id:1,name:"Me",email:"",phone:"",photo:"",parentID:null,spouseID:null}
 ];
 
-let positions = {};
+let pos={};
 
 function resetTree(){
-  if(confirm("Reset family tree?")){
+  if(confirm("Reset entire family tree?")){
     localStorage.clear();
     location.reload();
   }
 }
 
-function getChildren(id){
-  return data.filter(p => p.parentID === id);
-}
-
-function getLevel(p){
+function level(p){
   if(!p.parentID) return 0;
-  const parent = data.find(x=>x.id===p.parentID);
-  return parent ? getLevel(parent)+1 : 0;
+  const par=data.find(x=>x.id===p.parentID);
+  return par?level(par)+1:0;
 }
 
 function layout(){
-  positions = {};
-  const levels = {};
+  pos={};
+  const levels={};
   data.forEach(p=>{
-    const lvl = getLevel(p);
-    levels[lvl] ||= [];
-    levels[lvl].push(p);
+    const l=level(p);
+    (levels[l]??=[]).push(p);
+  });
+  Object.entries(levels).forEach(([l,arr])=>{
+    arr.forEach((p,i)=>{
+      pos[p.id]={x:i*260+200,y:l*220+120};
+    });
   });
 
-  Object.entries(levels).forEach(([lvl,arr])=>{
-    arr.forEach((p,i)=>{
-      positions[p.id]={
-        x: i*220 + 200,
-        y: lvl*200 + 100
-      };
-    });
+  data.forEach(p=>{
+    if(p.spouseID && pos[p.id] && !pos[p.spouseID]){
+      pos[p.spouseID]={x:pos[p.id].x+180,y:pos[p.id].y};
+    }
   });
 }
 
@@ -226,13 +191,11 @@ function render(){
   drawLines();
 
   data.forEach(p=>{
-    const pos = positions[p.id];
-    const el = document.createElement("div");
-    el.className="node";
-    el.style.left=pos.x+"px";
-    el.style.top=pos.y+"px";
-
-    el.innerHTML=`
+    const d=document.createElement("div");
+    d.className="node";
+    d.style.left=pos[p.id].x+"px";
+    d.style.top=pos[p.id].y+"px";
+    d.innerHTML=`
       <div class="photo">${p.photo?`<img src="${p.photo}">`:""}</div>
       <div class="name">${p.name}</div>
       <div class="controls">
@@ -240,10 +203,11 @@ function render(){
         <div class="ctrl bottom" onclick="openAdd(${p.id},'child')">+</div>
         <div class="ctrl left" onclick="openAdd(${p.id},'sibling')">+</div>
         <div class="ctrl right" onclick="openAdd(${p.id},'sibling')">+</div>
+        ${!p.spouseID?`<div class="ctrl spouse" onclick="openAdd(${p.id},'spouse')">❤️</div>`:""}
       </div>
     `;
-    el.onclick=()=>edit(p.id);
-    treeEl.appendChild(el);
+    d.onclick=()=>edit(p.id);
+    treeEl.appendChild(d);
   });
 
   localStorage.setItem("familyTree",JSON.stringify(data));
@@ -259,20 +223,35 @@ function drawLines(){
   ctx.strokeStyle="#9ca3af";
   ctx.lineWidth=2;
 
+  // parent-child
   data.forEach(p=>{
     if(p.parentID){
-      const a=positions[p.parentID];
-      const b=positions[p.id];
+      const a=pos[p.parentID],b=pos[p.id];
+      if(!a||!b)return;
       ctx.beginPath();
       ctx.moveTo(a.x+75,a.y+150);
       ctx.lineTo(b.x+75,b.y);
       ctx.stroke();
     }
   });
+
+  // spouse
+  ctx.setLineDash([6,4]);
+  data.forEach(p=>{
+    if(p.spouseID && p.id<p.spouseID){
+      const a=pos[p.id],b=pos[p.spouseID];
+      if(!a||!b)return;
+      ctx.beginPath();
+      ctx.moveTo(a.x+150,a.y+75);
+      ctx.lineTo(b.x,b.y+75);
+      ctx.stroke();
+    }
+  });
+  ctx.setLineDash([]);
 }
 
 function openAdd(id,rel){
-  dialogTitle.textContent=`Add ${rel} of ${data.find(p=>p.id===id).name}`;
+  dialogTitle.textContent=`Add ${rel.toUpperCase()} of ${data.find(p=>p.id===id).name}`;
   baseId.value=id;
   relation.value=rel;
   name.value=email.value=phone.value="";
@@ -297,32 +276,34 @@ function save(){
 
   if(rel==="edit"){
     const p=data.find(x=>x.id===id);
-    p.name=name.value;
-    p.email=email.value;
-    p.phone=phone.value;
-    loadPhoto(p);
-    return;
+    p.name=name.value;p.email=email.value;p.phone=phone.value;
+    loadPhoto(p);return;
   }
 
-  const newP={id:Date.now(),name:name.value,email:email.value,phone:phone.value,photo:"",parentID:null};
+  if(rel==="spouse"){
+    const base=data.find(p=>p.id===id);
+    const sp={id:Date.now(),name:name.value,email:email.value,phone:phone.value,photo:"",
+      parentID:base.parentID,spouseID:base.id};
+    base.spouseID=sp.id;
+    data.push(sp);
+    loadPhoto(sp);return;
+  }
 
-  if(rel==="child") newP.parentID=id;
+  const n={id:Date.now(),name:name.value,email:email.value,phone:phone.value,photo:"",parentID:null,spouseID:null};
+  if(rel==="child") n.parentID=id;
+  if(rel==="sibling") n.parentID=data.find(p=>p.id===id).parentID;
   if(rel==="parent"){
-    newP.parentID=data.find(p=>p.id===id).parentID;
-    data.find(p=>p.id===id).parentID=newP.id;
+    n.parentID=data.find(p=>p.id===id).parentID;
+    data.find(p=>p.id===id).parentID=n.id;
   }
-  if(rel==="sibling"){
-    newP.parentID=data.find(p=>p.id===id).parentID;
-  }
-
-  data.push(newP);
-  loadPhoto(newP);
+  data.push(n);
+  loadPhoto(n);
 }
 
 function loadPhoto(p){
   if(photo.files[0]){
     const r=new FileReader();
-    r.onload=()=>{p.photo=r.result;render();}
+    r.onload=()=>{p.photo=r.result;render()}
     r.readAsDataURL(photo.files[0]);
   } else render();
 }
